@@ -1,9 +1,0 @@
-﻿# Core AI SDK — Azure OpenAI compatible
-openai>=1.40.0
-azure-identity>=1.16.0
-
-# MCP server SDK (Part 5+)
-mcp>=1.0.0
-
-# Utilities
-python-dotenv>=1.0.0
