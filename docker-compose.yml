@@ -1,0 +1,65 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "DunderMifflin2024!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "DunderMifflin2024!", "-Q", "SELECT 1", "-C"]
+      interval: 10s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8000"
+    environment:
+      DATABASE_URL: "mssql+pyodbc://sa:DunderMifflin2024!@sqlserver:1433/dm_packages?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes"
+      EVENT_PUBLISHER: "inmemory"
+      REALTIME_PUBLISHER: "websocket"
+      APP_ENV: "local"
+      APP_PORT: "8000"
+      SIMULATION_TICK_INTERVAL_SECONDS: "5"
+      SIMULATION_LOCATION_EVENT_EVERY_N_TICKS: "3"
+    env_file:
+      - path: ./backend/.env
+        required: false
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    develop:
+      watch:
+        - action: sync
+          path: ./backend
+          target: /app
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "4200:4200"
+    environment:
+      API_BASE_URL: "http://localhost:8080"
+      WS_URL: "ws://localhost:8080/ws"
+    env_file:
+      - path: ./frontend/.env
+        required: false
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  sqlserver_data:
