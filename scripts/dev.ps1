@@ -5,8 +5,8 @@ $root = Split-Path $PSScriptRoot -Parent
 
 # Backend: create venv if needed
 if (-not (Test-Path "$root\backend\.venv")) {
-    Write-Host "Creating Python virtual environment..."
-    python -m venv "$root\backend\.venv"
+    Write-Host "Creating Python virtual environment (3.12)..."
+    py -3.12 -m venv "$root\backend\.venv"
 }
 
 # Backend: install dependencies
@@ -17,6 +17,11 @@ Write-Host "Installing backend dependencies..."
 Write-Host "Running database migrations..."
 Push-Location "$root\backend"
 & ".venv\Scripts\alembic" upgrade head
+if ($LASTEXITCODE -ne 0) {
+    Pop-Location
+    Write-Error "Migrations failed. Delete backend\dm_packages_dev.db (if using SQLite) and retry."
+    exit 1
+}
 Pop-Location
 
 # Frontend: install dependencies if needed
