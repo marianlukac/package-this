@@ -1,4 +1,4 @@
-"""Seed script — 12 employees, 14 customers, 3 trucks, 5 sales, 13 packages, 21 map locations."""
+"""Seed script — 12 employees, 14 customers, 3 trucks, 3 routes, 5 sales, 13 packages, 21 map locations."""
 import json
 from datetime import datetime, timedelta
 
@@ -14,6 +14,7 @@ from app.models.package_history import EventSource, PackageHistory, PackageHisto
 from app.models.package_line_item import PackageLineItem, ProductType
 from app.models.sale import Sale
 from app.models.truck import Truck, TruckStatus
+from app.models.truck_route import RouteStatus, RouteStop, TruckRoute
 
 
 def seed(session: Session) -> None:
@@ -23,6 +24,7 @@ def seed(session: Session) -> None:
     _seed_map_locations(session)
     _seed_sales_and_packages(session)
     _seed_complaints(session)
+    _seed_routes(session)
     session.commit()
 
 
@@ -314,3 +316,49 @@ def _add_history(
         new_value=json.dumps(new) if new else None,
         reason=reason,
     ))
+
+
+def _seed_routes(session: Session) -> None:
+    from app.services.route_service import calculate_route
+    now = datetime.utcnow()
+
+    # Route 1 — Truck 1 (The Dundie), completed yesterday
+    existing1 = session.exec(select(TruckRoute).where(TruckRoute.truck_id == "DM-TRUCK-01")).first()
+    if not existing1:
+        r1 = calculate_route(session, "DM-TRUCK-01", [
+            "vance-refrigeration", "lackawanna-county", "poor-richard-pub",
+        ])
+        r1.status = RouteStatus.COMPLETED
+        r1.started_at = now - timedelta(hours=26)
+        r1.completed_at = now - timedelta(hours=24)
+        for stop in session.exec(select(RouteStop).where(RouteStop.route_id == r1.route_id)).all():
+            stop.is_completed = True
+            stop.arrived_at = r1.started_at + timedelta(minutes=stop.stop_order * 6)
+            stop.completed_at = stop.arrived_at + timedelta(minutes=2)
+
+    # Route 2 — Truck 2 (Pretzel Day), currently active
+    existing2 = session.exec(select(TruckRoute).where(TruckRoute.truck_id == "DM-TRUCK-02")).first()
+    if not existing2:
+        r2 = calculate_route(session, "DM-TRUCK-02", [
+            "steamtown-mall", "scranton-business-park", "coopers-seafood", "electric-city-grille",
+        ])
+        r2.status = RouteStatus.ACTIVE
+        r2.started_at = now - timedelta(minutes=25)
+        r2.current_waypoint_index = 12
+        stops2 = session.exec(
+            select(RouteStop).where(RouteStop.route_id == r2.route_id).order_by(RouteStop.stop_order)
+        ).all()
+        if stops2:
+            stops2[0].is_completed = True
+            stops2[0].arrived_at = r2.started_at + timedelta(minutes=6)
+            stops2[0].completed_at = stops2[0].arrived_at + timedelta(minutes=2)
+
+    # Route 3 — Truck 3 (Big Tuna), planned for today
+    existing3 = session.exec(select(TruckRoute).where(TruckRoute.truck_id == "DM-TRUCK-03")).first()
+    if not existing3:
+        r3 = calculate_route(session, "DM-TRUCK-03", [
+            "allied-steel", "carmines-italian", "county-court", "anthracite-museum", "schrute-farms",
+        ])
+        r3.status = RouteStatus.PLANNED
+
+    session.flush()
