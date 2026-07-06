@@ -1,7 +1,7 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
-
-from typing import Optional
 
 from app.database import get_session
 from app.models.package import Package, PackageStatus
