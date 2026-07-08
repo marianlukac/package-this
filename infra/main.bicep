@@ -13,6 +13,22 @@ param sqlAdminLogin string
 @description('SQL admin password')
 param sqlAdminPassword string
 
+@description('Fully-qualified backend container image, e.g. ghcr.io/org/repo/backend:sha')
+param backendImage string = 'ghcr.io/globalai-community/dm-package-manager/backend:latest'
+
+@description('Fully-qualified frontend container image, e.g. ghcr.io/org/repo/frontend:sha')
+param frontendImage string = 'ghcr.io/globalai-community/dm-package-manager/frontend:latest'
+
+@description('Container registry server (e.g. ghcr.io)')
+param registryServer string = 'ghcr.io'
+
+@description('Container registry username (leave empty for anonymous pull of public images)')
+param registryUsername string = ''
+
+@secure()
+@description('Container registry password / token')
+param registryPassword string = ''
+
 var prefix = 'dm-packages-${environmentName}'
 
 // ----- Azure SQL -----
@@ -63,6 +79,11 @@ module containerApps './modules/containerapps.bicep' = {
     serviceBusConnectionString: serviceBus.outputs.connectionString
     webPubSubConnectionString: webPubSub.outputs.connectionString
     azureMapsKey: maps.outputs.primaryKey
+    backendImage: backendImage
+    frontendImage: frontendImage
+    registryServer: registryServer
+    registryUsername: registryUsername
+    registryPassword: registryPassword
   }
 }
 

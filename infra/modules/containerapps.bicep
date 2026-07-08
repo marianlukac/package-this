@@ -4,6 +4,27 @@ param sqlConnectionString string
 param serviceBusConnectionString string
 param webPubSubConnectionString string
 param azureMapsKey string
+param backendImage string = 'ghcr.io/globalai-community/dm-package-manager/backend:latest'
+param frontendImage string = 'ghcr.io/globalai-community/dm-package-manager/frontend:latest'
+param registryServer string = 'ghcr.io'
+param registryUsername string = ''
+@secure()
+param registryPassword string = ''
+
+var useRegistryCreds = !empty(registryUsername)
+var registries = useRegistryCreds ? [
+  {
+    server: registryServer
+    username: registryUsername
+    passwordSecretRef: 'registry-password'
+  }
+] : []
+var registrySecrets = useRegistryCreds ? [
+  {
+    name: 'registry-password'
+    value: registryPassword
+  }
+] : []
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: '${prefix}-logs'
@@ -41,12 +62,14 @@ resource backend 'Microsoft.App/containerApps@2023-05-01' = {
         targetPort: 8000
         transport: 'http'
       }
+      registries: registries
+      secrets: registrySecrets
     }
     template: {
       containers: [
         {
           name: 'backend'
-          image: 'ghcr.io/globalai-community/dm-package-manager/backend:latest'
+          image: backendImage
           resources: {
             cpu: json('0.5')
             memory: '1Gi'
@@ -79,12 +102,14 @@ resource frontend 'Microsoft.App/containerApps@2023-05-01' = {
       ingress: {
         external: true
         targetPort: 4200
-        transport: 'http'
-      }
+      registries: registries
+      secrets: registrySecrets
     }
     template: {
       containers: [
         {
+          name: 'frontend'
+          image: frontendImage
           name: 'frontend'
           image: 'ghcr.io/globalai-community/dm-package-manager/frontend:latest'
           resources: {
